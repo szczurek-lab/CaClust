@@ -1,0 +1,7 @@
+#n_chain: number of independent runs of the model
+#n_cores: number of processor cores to use for the parallellised runs
+#subject: subject code (K4B, K5B, K6B, K7B), such that the input data can be found in the directory ../input/subject
+#clone: number of clones to use in the analysis, all subjects have the necessary input data for n_clone 3-6.
+#only one data row should be present
+n_chain,n_cores,subject,n_clone
+5,5,K4B,5
