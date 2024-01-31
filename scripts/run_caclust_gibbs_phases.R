@@ -106,5 +106,9 @@ ids_list <- foreach::foreach(i=1:n_chain, .export = ls(environment())) %dopar% {
   		   relax_rate_prior=relax_rate_prior)
 } 
 
-saveRDS( ids_list, paste0(output_save, subject, '/', subject, '_gibbs_results.rds'))
+output_dir <- paste0(output_save, subject)
+
+dir.create(output_dir, showWarnings=FALSE)
+
+saveRDS(ids_list, paste0(output_dir, '/', subject, '_gibbs_results.rds'))
 
