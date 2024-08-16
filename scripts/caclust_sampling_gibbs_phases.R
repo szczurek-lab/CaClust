@@ -1,5 +1,31 @@
-# sampling loop
-
+#' Run or continue one chain of CaClust model sampling
+#'
+#' @param A Named matrix of alternate variant read counts in cells, of dimensions variants x cells
+#' @param D Named matrix of reference variant read counts in cells, of dimensions variants x cells
+#' @param Omega Matrix of estimated clonal profiles, of dimensions variants x clones
+#' @param BCR Array of one-hot encoded nucleotides in cells BCR sequences, of dimensions cells x positions x nucleotides
+#' @param Psi Prior for clone assignment of cells; defaults to uniform
+#' @param alpha_0 Initial value for concentration parameter; NULL will set initial value to mean of the prior
+#' @param alpha_prior Prior for the concentration parameter
+#' @param clusters DEPRECIATED List of initial hyperclusters; NULL will result in initial hyperclusters of cells with identical BCR sequences.
+#' @param t DEPRECIATED Initial assignment of cells to hyperclusters; must agree with clusters if provided
+#' @param g_prior_strength Strength hyperparameter with which the overall BCR sequences distribution is included in the prior for profiles of BCR hypercluster, must be non-negative
+#' @param g_prior_base Strength hyperparameter with which the symmetrical Dirichlet distribution is included in the prior for profiles of BCR hypercluster, must be non-negative
+#' @param relax_rate_prior Prior for the relax rate of the input clonal profiles
+#' @param prior0 Prior for the theta0 parameter
+#' @param prior1 Prior for the theta1 parameter
+#' @param keep_base_clone Does the Omega matrix contain first column with an unmutated reference clone, which should be kept through the inference; defaults to TRUE
+#' @param min_iter Minimum number of sampling iterations performed by the model
+#' @param max_iter Maximum number of sampling iterations performed by the model
+#' @param buin_frac Fraction of sampling iterations to be considered as burn-in in calculating final estimates
+#' @param write_skip Save and use only 1 out of every write_skip iterations, useful for memory considerations and autocorrelation
+#' @param checkpoint If a run should be continued from a checkpoint, a named list with the last sampled values of: clusters, t, I, B, alpha0, theta0, theta1, C, relax_rate. Otherwise default NULL will result in a new model run.
+#'
+#' @return
+#' @export
+#'
+#' @examples
+#'
 caclust_sampling <- function(A, D, Omega, BCR, Psi=NULL, 
                              alpha_0=10, alpha_prior=c(10, 1),
                              clusters=NULL, t=NULL,
@@ -39,7 +65,7 @@ caclust_sampling <- function(A, D, Omega, BCR, Psi=NULL,
   }
   
   # >>> initialise or get clustering >>>
-  g <- apply(BCR, c(2,3), mean) * g_prior_strength + g_prior_base
+  g <- apply(BCR, c(2,3), sum) / apply(BCR, 2, sum) * g_prior_strength + g_prior_base
   
   if( is.null(checkpoint) ){
     identical_ordering <- data.frame(flat_BCR) %>% as.list() %>% do.call( grouping, . )
@@ -80,11 +106,16 @@ caclust_sampling <- function(A, D, Omega, BCR, Psi=NULL,
     }
     
   }else{
+    n_checkpoint_clusts <- length(checkpoint$clusters)
     clusters <- checkpoint$clusters
+    clusters[[M+1]] <- NULL #expand cluster list to make room for up to M clusters
     t <- checkpoint$t
     
-    I <- checkpoint$I
-    flat_B <- checkpoint$B
+    I <- 1:M
+    I[1:n_checkpoint_clusts] <- checkpoint$I
+    
+    flat_B <- matrix(0, nrow=M, ncol=4*L)
+    flat_B[1:n_checkpoint_clusts,1:(4*L)] <- checkpoint$B
     
     alpha_0 <- checkpoint$alpha0
   }
@@ -132,7 +163,7 @@ caclust_sampling <- function(A, D, Omega, BCR, Psi=NULL,
   #scale the theta_0 prior, to be comparable to the number of total reference reads
   prior0 <- prior0 * sum(B1) / 2
   #scale the theta_i prior, to match the number of alterated reads at pos i 
-  prior1 <- prior1 * apply(A, 1, sum)
+  prior1 <- prior1 * (apply(A, 1, sum) + 1)
   
   save_it <- floor( max_iter/write_skip )
   
@@ -286,7 +317,8 @@ caclust_sampling <- function(A, D, Omega, BCR, Psi=NULL,
   names(t) <- colnames(A)
   
   return_list <- list("theta0" = theta0, "theta1" = theta1,
-                      "alpha0" = alpha_0_all[1:last_it],
+                      "alpha0" = alpha_0,
+                      "alpha0_all" = alpha_0_all[1:last_it],
                       "theta0_all" = as.matrix(theta0_all[1:last_it, ]),
                       "theta1_all" = as.matrix(theta1_all[1:last_it, ]),
                       "element" = idx_mat, "logLik" = logLik_all[2:it],
