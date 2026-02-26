@@ -25,3 +25,7 @@ Directory scripts contains all functions needed for model inference as well as t
     Example of running CaClust chains on real data from input.zip, which must be unpacked to a directory specified by input_path.
   - run_toy_example.R
     Example of running CaClust on toy_data.rds, extracting cell assignment and clonal profiles, and restarting a model run from checkpoint.
+
+# Funding
+
+This work received funding from the Polish National Science Centre SONATA BIS grant No. 2020/38/E/NZ2/00305 and KWF Dutch Cancer Society grant No. 13104. M.N. and J.S. are funded by Anillo ATE220016 and Fondecyt 1230298(ANID, Chile).
